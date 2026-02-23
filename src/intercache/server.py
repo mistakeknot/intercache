@@ -247,7 +247,7 @@ def create_server() -> Server:
                 name="embedding_index",
                 description=(
                     "Index files for semantic search. Embeds file content using "
-                    "nomic-embed-code (768d). Incremental — only re-embeds changed files."
+                    "nomic-embed-text-v1.5 (768d). Incremental — only re-embeds changed files."
                 ),
                 inputSchema={
                     "type": "object",

@@ -14,7 +14,7 @@ from .manifest import _project_hash, DEFAULT_CACHE_DIR
 logger = logging.getLogger(__name__)
 
 EMBEDDING_DIM = 768
-MODEL_NAME = "nomic-ai/nomic-embed-code-v1"
+MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS embeddings (
