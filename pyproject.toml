@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "intercache"
-version = "0.1.0"
-description = "Cross-session semantic cache — content-addressed blobs, manifests, session tracking, and embedding persistence"
+version = "0.2.0"
+description = "Cross-session semantic cache — content-addressed blobs, manifests, and session tracking"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
@@ -21,14 +21,9 @@ classifiers = [
 
 dependencies = [
     "mcp>=1.0.0",
-    "numpy>=1.26",
 ]
 
 [project.optional-dependencies]
-embeddings = [
-    "sentence-transformers>=2.0",
-    "einops>=0.7",
-]
 test = ["pytest>=8.0", "pytest-asyncio>=0.23"]
 
 [project.scripts]

@@ -1,7 +1,7 @@
 {
   "name": "intercache",
-  "version": "0.1.0",
-  "description": "Cross-session semantic cache for Claude Code. Content-addressed blob storage, per-project manifests, session tracking, and persistent embeddings — reduces cold start time and eliminates redundant file reads across sessions.",
+  "version": "0.2.0",
+  "description": "Cross-session semantic cache for Claude Code. Content-addressed blob storage, per-project manifests, and session tracking — reduces cold start time and eliminates redundant file reads across sessions.",
   "author": {
     "name": "MK",
     "email": "mistakeknot@vibeguider.org"
@@ -13,7 +13,6 @@
     "cache",
     "semantic-cache",
     "content-addressed",
-    "embeddings",
     "cross-session",
     "mcp-server"
   ],

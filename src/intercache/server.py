@@ -19,17 +19,15 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from .embeddings import EmbeddingStore
 from .manifest import Manifest
 from .session import SessionTracker
 from .store import BlobStore, DEFAULT_CACHE_DIR
 
 logger = logging.getLogger(__name__)
 
-# Cache open manifests/sessions/embeddings per project root
+# Cache open manifests/sessions per project root
 _manifests: dict[str, Manifest] = {}
 _sessions: dict[str, SessionTracker] = {}
-_embeddings: dict[str, EmbeddingStore] = {}
 _blob_store: BlobStore | None = None
 
 
@@ -50,12 +48,6 @@ def _get_session(project_root: str) -> SessionTracker:
     if project_root not in _sessions:
         _sessions[project_root] = SessionTracker(project_root)
     return _sessions[project_root]
-
-
-def _get_embeddings(project_root: str) -> EmbeddingStore:
-    if project_root not in _embeddings:
-        _embeddings[project_root] = EmbeddingStore(project_root)
-    return _embeddings[project_root]
 
 
 def _ok(data: Any) -> list[TextContent]:
@@ -244,54 +236,6 @@ def create_server() -> Server:
                 },
             ),
             Tool(
-                name="embedding_index",
-                description=(
-                    "Index files for semantic search. Embeds file content using "
-                    "nomic-embed-text-v1.5 (768d). Incremental — only re-embeds changed files."
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "project_root": {
-                            "type": "string",
-                            "description": "Absolute path to the project root.",
-                        },
-                        "paths": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Specific paths to index. Omit to index all cached files.",
-                        },
-                    },
-                    "required": ["project_root"],
-                },
-            ),
-            Tool(
-                name="embedding_query",
-                description=(
-                    "Semantic search across indexed files. Returns top-K files ranked "
-                    "by cosine similarity to the query."
-                ),
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "Natural language query.",
-                        },
-                        "project_root": {
-                            "type": "string",
-                            "description": "Absolute path to the project root.",
-                        },
-                        "top_k": {
-                            "type": "integer",
-                            "description": "Number of results (default 10).",
-                            "default": 10,
-                        },
-                    },
-                    "required": ["query", "project_root"],
-                },
-            ),
-            Tool(
                 name="cache_purge",
                 description=(
                     "Purge all cached data for a project or globally. Use for sensitive "
@@ -326,10 +270,6 @@ def create_server() -> Server:
                 return await _handle_session_track(arguments)
             elif name == "session_diff":
                 return await _handle_session_diff(arguments)
-            elif name == "embedding_index":
-                return await _handle_embedding_index(arguments)
-            elif name == "embedding_query":
-                return await _handle_embedding_query(arguments)
             elif name == "cache_purge":
                 return await _handle_cache_purge(arguments)
             else:
@@ -471,11 +411,9 @@ async def _handle_cache_stats(args: dict) -> list[TextContent]:
     project_root = args.get("project_root")
     if project_root:
         manifest = _get_manifest(project_root)
-        emb_store = _get_embeddings(project_root)
         result["project"] = {
             "project_root": project_root,
             "manifest_files": manifest.count(),
-            "embedding_files": emb_store.count(),
         }
 
     return _ok(result)
@@ -500,83 +438,19 @@ async def _handle_session_diff(args: dict) -> list[TextContent]:
     return _ok(diff)
 
 
-async def _handle_embedding_index(args: dict) -> list[TextContent]:
-    project_root = args["project_root"]
-    manifest = _get_manifest(project_root)
-    emb_store = _get_embeddings(project_root)
-
-    paths = args.get("paths")
-    if paths is None:
-        # Index all cached files
-        entries = manifest.all_entries()
-        paths = [e["path"] for e in entries]
-
-    indexed = 0
-    skipped = 0
-    errors = 0
-
-    blob_store = _get_blob_store()
-    for path in paths:
-        entry = manifest.lookup(path)
-        if entry is None:
-            errors += 1
-            continue
-
-        content_bytes = blob_store.lookup(entry["sha256"])
-        if content_bytes is None:
-            # Try reading from disk
-            full_path = os.path.join(project_root, path)
-            try:
-                with open(full_path, "rb") as f:
-                    content_bytes = f.read()
-            except OSError:
-                errors += 1
-                continue
-
-        try:
-            content = content_bytes.decode("utf-8", errors="replace")
-            # Truncate very large files for embedding (first 8K chars)
-            if len(content) > 8192:
-                content = content[:8192]
-            if emb_store.index_file(path, content, entry["sha256"]):
-                indexed += 1
-            else:
-                skipped += 1
-        except Exception as e:
-            logger.warning("Failed to index %s: %s", path, e)
-            errors += 1
-
-    return _ok({"indexed": indexed, "skipped": skipped, "errors": errors})
-
-
-async def _handle_embedding_query(args: dict) -> list[TextContent]:
-    project_root = args["project_root"]
-    query = args["query"]
-    top_k = args.get("top_k", 10)
-
-    emb_store = _get_embeddings(project_root)
-    results = emb_store.query(query, top_k=top_k)
-
-    return _ok({"query": query, "results": results, "count": len(results)})
-
-
 async def _handle_cache_purge(args: dict) -> list[TextContent]:
     project_root = args.get("project_root")
 
     if project_root:
         # Purge specific project
         manifest = _get_manifest(project_root)
-        emb_store = _get_embeddings(project_root)
-        session = _get_session(project_root)
 
         entries = manifest.all_entries()
         manifest.invalidate("%")
         manifest.close()
-        emb_store.close()
 
         # Remove from caches
         _manifests.pop(project_root, None)
-        _embeddings.pop(project_root, None)
         _sessions.pop(project_root, None)
 
         return _ok({
@@ -592,10 +466,7 @@ async def _handle_cache_purge(args: dict) -> list[TextContent]:
         # Close all project connections
         for m in _manifests.values():
             m.close()
-        for e in _embeddings.values():
-            e.close()
         _manifests.clear()
-        _embeddings.clear()
         _sessions.clear()
 
         return _ok({"purged": True, "scope": "global", "blobs_removed": count})
@@ -625,8 +496,6 @@ def main():
         logger.info("Received %s, shutting down", sig.name)
         for m in _manifests.values():
             m.close()
-        for e in _embeddings.values():
-            e.close()
         loop.stop()
 
     for sig in (signal.SIGINT, signal.SIGTERM):
