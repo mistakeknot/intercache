@@ -20,12 +20,9 @@
   "mcpServers": {
     "intercache": {
       "type": "stdio",
-      "command": "uv",
+      "command": "bash",
       "args": [
-        "run",
-        "--directory",
-        "${CLAUDE_PLUGIN_ROOT}",
-        "intercache-mcp"
+        "${CLAUDE_PLUGIN_ROOT}/scripts/launch-intercache.sh"
       ]
     }
   }
