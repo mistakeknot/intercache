@@ -45,6 +45,20 @@ cd interverse/intercache
 uv run pytest tests/ -v
 ```
 
+## Decay Policy
+
+Cache data (C5 ephemeral) uses size-based LRU eviction rather than time-based decay:
+
+| Data type | Eviction trigger | Strategy | Hysteresis |
+|-----------|-----------------|----------|------------|
+| Blob store | Total size > 500MB | LRU by last access time | 10% headroom (evict to 450MB) |
+| Session logs | > 100 sessions per project | Oldest sessions dropped | Keep at least 50 |
+| Manifests | Stale entries (file changed on disk) | Invalidated on mtime/size mismatch | N/A |
+
+**Standard pattern (adapted):** No grace period — cache entries are useful immediately or not at all. Size-based LRU replaces intermem's time-based decay because cache value correlates with recency of access, not age of creation. The `cache_purge` tool provides manual eviction when automated LRU is insufficient.
+
+**Not yet implemented:** LRU eviction is a policy specification. Current behavior is unbounded growth with manual `cache_purge`. Implementation tracked separately.
+
 ## Design Decisions (Do Not Re-Ask)
 
 - Embedding tools (embedding_index, embedding_query) moved to intersearch in v0.2.0
