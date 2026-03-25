@@ -3,7 +3,8 @@
 # Install: cp hooks/post-commit.sh .git/hooks/post-commit && chmod +x .git/hooks/post-commit
 # Or add to your existing post-commit hook.
 
-set -euo pipefail
+set -uo pipefail
+trap 'exit 0' ERR
 
 # Get files changed in the most recent commit
 changed_files=$(git diff --name-only HEAD~1 HEAD 2>/dev/null) || exit 0
