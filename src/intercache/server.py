@@ -298,13 +298,15 @@ async def _handle_cache_lookup(args: dict) -> list[TextContent]:
     if content is None:
         return _ok({"hit": False, "path": path, "reason": "blob_missing"})
 
-    return _ok({
-        "hit": True,
-        "path": path,
-        "sha256": sha256,
-        "size": len(content),
-        "content": content.decode("utf-8", errors="replace"),
-    })
+    return _ok(
+        {
+            "hit": True,
+            "path": path,
+            "sha256": sha256,
+            "size": len(content),
+            "content": content.decode("utf-8", errors="replace"),
+        }
+    )
 
 
 def _safe_resolve(project_root: str, path: str) -> str | None:
@@ -336,12 +338,14 @@ async def _handle_cache_store(args: dict) -> list[TextContent]:
     manifest = _get_manifest(project_root)
     manifest.update(path, sha256, st.st_mtime, st.st_size)
 
-    return _ok({
-        "stored": True,
-        "path": path,
-        "sha256": sha256,
-        "size": len(content),
-    })
+    return _ok(
+        {
+            "stored": True,
+            "path": path,
+            "sha256": sha256,
+            "size": len(content),
+        }
+    )
 
 
 async def _handle_cache_invalidate(args: dict) -> list[TextContent]:
@@ -394,12 +398,14 @@ async def _handle_cache_warm(args: dict) -> list[TextContent]:
         except OSError:
             missing += 1
 
-    return _ok({
-        "warmed": warmed,
-        "already_valid": already_valid,
-        "missing": missing,
-        "total_checked": len(files),
-    })
+    return _ok(
+        {
+            "warmed": warmed,
+            "already_valid": already_valid,
+            "missing": missing,
+            "total_checked": len(files),
+        }
+    )
 
 
 async def _handle_cache_stats(args: dict) -> list[TextContent]:
@@ -428,7 +434,9 @@ async def _handle_session_track(args: dict) -> list[TextContent]:
     session = _get_session(project_root)
     session.track(session_id, path, action)
 
-    return _ok({"tracked": True, "session_id": session_id, "path": path, "action": action})
+    return _ok(
+        {"tracked": True, "session_id": session_id, "path": path, "action": action}
+    )
 
 
 async def _handle_session_diff(args: dict) -> list[TextContent]:
@@ -453,11 +461,13 @@ async def _handle_cache_purge(args: dict) -> list[TextContent]:
         _manifests.pop(project_root, None)
         _sessions.pop(project_root, None)
 
-        return _ok({
-            "purged": True,
-            "project_root": project_root,
-            "files_removed": len(entries),
-        })
+        return _ok(
+            {
+                "purged": True,
+                "project_root": project_root,
+                "files_removed": len(entries),
+            }
+        )
     else:
         # Global purge
         blob_store = _get_blob_store()
@@ -472,6 +482,41 @@ async def _handle_cache_purge(args: dict) -> list[TextContent]:
         return _ok({"purged": True, "scope": "global", "blobs_removed": count})
 
 
+# ── Parent-death watchdog ─────────────────────────────────────────────────
+
+
+def _start_parent_watchdog() -> None:
+    """Exit when the parent process dies (PPID becomes 1 / launchd).
+
+    MCP servers are children of the Claude CLI. When the CLI exits normally,
+    stdin closes and the server shuts down via the stdio_server context manager.
+    But if the parent is killed with SIGKILL (or the OS reaps it), stdin may not
+    get a clean EOF on macOS — the child hangs forever, orphaned under launchd.
+
+    This watchdog thread polls os.getppid() every 2 seconds and sends SIGTERM
+    to ourselves when reparented, ensuring a clean exit.
+    """
+    import threading
+    import time
+
+    original_ppid = os.getppid()
+
+    def _watch():
+        while True:
+            time.sleep(2)
+            if os.getppid() != original_ppid:
+                logger.info(
+                    "Parent process died (was %d, now %d), exiting",
+                    original_ppid,
+                    os.getppid(),
+                )
+                os.kill(os.getpid(), signal.SIGTERM)
+                return
+
+    t = threading.Thread(target=_watch, daemon=True)
+    t.start()
+
+
 # ── Entry point ────────────────────────────────────────────────────────────
 
 
@@ -483,11 +528,15 @@ def main():
         stream=sys.stderr,
     )
 
+    _start_parent_watchdog()
+
     server = create_server()
 
     async def run():
         async with stdio_server() as (read_stream, write_stream):
-            await server.run(read_stream, write_stream, server.create_initialization_options())
+            await server.run(
+                read_stream, write_stream, server.create_initialization_options()
+            )
 
     # Handle signals for clean shutdown
     loop = asyncio.new_event_loop()
