@@ -1,0 +1,27 @@
+{
+  "name": "intercache",
+  "version": "0.2.1",
+  "description": "Cross-session semantic cache for Claude Code. Content-addressed blob storage, per-project manifests, and session tracking — reduces cold start time and eliminates redundant file reads across sessions.",
+  "license": "MIT",
+  "keywords": [
+    "cache",
+    "semantic-cache",
+    "content-addressed",
+    "cross-session",
+    "mcp-server"
+  ],
+  "homepage": "https://github.com/mistakeknot/intercache#readme",
+  "author": "MK",
+  "interface": {
+    "displayName": "intercache",
+    "shortDescription": "Cross-session semantic cache for Claude Code. Content-addressed blob storage, per-project manifests, and session trac..."
+  },
+  "mcpServers": {
+    "intercache": {
+      "command": "bash",
+      "args": [
+        "${KIMI_PLUGIN_ROOT}/scripts/launch-intercache.sh"
+      ]
+    }
+  }
+}
