@@ -1,6 +1,6 @@
 # intercache
 
-Cross-session semantic cache for Claude Code.
+Cross-session semantic cache for Claude Code, Codex, and Kimi Code.
 
 ## What this does
 
@@ -10,7 +10,7 @@ Files are stored by SHA256 hash with 2-character prefix sharding, so identical c
 
 ## Installation
 
-intercache is an internal plugin in the [Demarch](https://github.com/mistakeknot/Demarch) monorepo. Install from the interagency marketplace:
+intercache is an internal plugin in the [Sylveste](https://github.com/mistakeknot/Sylveste) monorepo. Install from the interagency marketplace:
 
 ```bash
 /plugin marketplace add mistakeknot/interagency-marketplace
