@@ -10,3 +10,6 @@ build/
 .clavain/**/*.db-shm
 .clavain/**/*.db-wal
 .clavain/intercore.db*
+
+# Machine-local interspect telemetry (SQLite); git-autosync does 'git add -A'
+.clavain/interspect/
