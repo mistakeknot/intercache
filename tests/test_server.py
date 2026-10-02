@@ -36,8 +36,7 @@ def tmp_cache(tmp_path):
     cache_dir.mkdir()
     with patch.object(srv, "_blob_store", None), \
          patch.object(srv, "_manifests", {}), \
-         patch.object(srv, "_sessions", {}), \
-         patch.object(srv, "_embeddings", {}):
+         patch.object(srv, "_sessions", {}):
         # Patch DEFAULT_CACHE_DIR in all modules
         with patch("intercache.store.DEFAULT_CACHE_DIR", cache_dir), \
              patch("intercache.manifest.DEFAULT_CACHE_DIR", cache_dir), \
